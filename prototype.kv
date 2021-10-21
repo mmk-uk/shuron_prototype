@@ -1,0 +1,138 @@
+#: import NoTransition kivy.uix.screenmanager.NoTransition
+ 
+<Widget>:
+    font_name: '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc'
+ 
+<Display>:
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba: 0.8, 0.8, 0.8,1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        orientation: "vertical"
+ 
+        ScreenManager:
+            id: sm
+            Camera_Position:
+            Config_Device:
+ 
+<Camera_Position>:
+    name: 'camera_position'
+
+    BoxLayout:
+        orientation: 'vertical'
+        
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: 156/255,167/255,181/255,1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            size_hint_y: 0.2   
+            Label:
+                text: "カメラの位置の設定"
+                color: 0,0,0,1
+                font_size: 48
+
+        CameraPreview:
+            id: camera_preview
+            size: root.size
+
+        BoxLayout:
+            size_hint_y: 0.1
+            padding: 10,10,10,10
+            Label:
+            Button:
+                background_color: 0.48,1,0.63,1
+                text: 'OK'
+                font_size: 48
+                on_press: 
+                    root.manager.transition = NoTransition()
+                    root.manager.current = 'config_device'
+
+            Label:
+
+ 
+<Config_Device>:
+    name: 'config_device'
+    BoxLayout:
+        orientation: 'vertical'
+        
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: 156/255,167/255,181/255,1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            size_hint_y: 0.2   
+            Label:
+                text: "操作家電の設定"
+                color: 0,0,0,1
+                font_size: 48
+        
+        BoxLayout:
+            BoxLayout:
+                orientation: 'vertical'
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: 0.2 
+                    padding: 20,50,20,20
+                    BoxLayout:
+                        padding: 100,20,100,20
+                        size_hint_y: 0.1
+                        Label:
+                            text: '追加したい家電の名前を入力'
+                            color: 0,0,0,1
+                    BoxLayout:
+                        padding: 100,10,100,10
+                        TextInput:
+                            text: ''
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    BoxLayout:
+                        size_hint_y: 0.1
+                        Label:
+                            text: '追加したい家電の範囲を選択'
+                            color: 0,0,0,1
+                    CameraViewImage:
+                        id: camera_view_image
+                        size: root.size
+
+                BoxLayout:
+                    size_hint_y: 0.2 
+                    padding: 20,20,20,50
+                    Button:
+                        background_color: 0.48,1,0.63,1
+                        text: '追加'
+                        font_size: 48
+
+            
+            BoxLayout:
+
+        BoxLayout:
+            size_hint_y: 0.1
+            padding: 10,10,10,10
+
+            Button:
+                background_color: 0.48,1,0.63,1
+                text: '戻る'
+                font_size: 48
+                on_press: 
+                    root.manager.transition = NoTransition()
+                    root.manager.current = 'camera_position'
+            Label:
+
+            Button:
+                background_color: 0.48,1,0.63,1
+                text: 'OK'
+                font_size: 48
+                on_press: 
+                    root.manager.transition = NoTransition()
+                    root.manager.current = 'camera_position'
+
