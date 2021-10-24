@@ -70,10 +70,18 @@
         Label:
             text: root.name
             color: 0,0,0,1
+            font_size: 36
         Image:
             texture: root.image
             size: self.size
         Label:
+        BoxLayout:
+            padding: 50,10,50,10
+            Button:
+                text: '削除'
+                background_color: 1,0,0,1
+                on_press:
+                    root.deleteKaden()
 
 <Config_Device>:
     name: 'config_device'

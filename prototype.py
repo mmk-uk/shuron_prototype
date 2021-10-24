@@ -16,6 +16,7 @@ from kivy.clock import Clock
 import cv2
 import numpy as np
 import copy
+import uuid
 
 
 
@@ -95,18 +96,30 @@ class Config_Device(Screen):
     def add(self):
         #print(self.ids.kaden_name.text)
         global start_x,start_y,end_x,end_y,clickFlag,kaden_list
+        if end_x < start_x :
+            tmp_x = start_x
+            start_x = end_x
+            end_x = tmp_x
+        
+        if end_y < start_y :
+            tmp_y = start_y
+            start_y = end_y
+            end_y = tmp_y
+
         if clickFlag == 2 and len(self.ids.kaden_name.text) != 0:
             kaden_area = {"start_x":start_x,"start_y":start_y,"end_x":end_x,"end_y":end_y}
             show_image = self.capture_img.copy()
             kaden_image = show_image[start_y:end_y,start_x:end_x,]
-            kaden_info = {"name":self.ids.kaden_name.text,"area":kaden_area,"image":kaden_image}
+            kaden_info = {"id":str(uuid.uuid4()),"name":self.ids.kaden_name.text,"area":kaden_area,"image":kaden_image}
             kaden_list.append(kaden_info)
 
             buf = cv2.flip(kaden_image, 0).tostring()
             texture = Texture.create(size=(kaden_image.shape[1], kaden_image.shape[0]), colorfmt='bgr')
             texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-            self.rv.data.append({'name':self.ids.kaden_name.text,'image':texture})
+            self.rv.data.append({'id':kaden_info["id"],'name':self.ids.kaden_name.text,'image':texture})
 
+            clickFlag = 0
+            self.ids.kaden_name.text = ""
 
 
     def nextStep(self):
@@ -114,7 +127,12 @@ class Config_Device(Screen):
         stepStatus += 1
 
     def backStep(self):
-        global stepStatus
+        global stepStatus,start_x,start_y,end_x,end_y,clickFlag,kaden_list
+        start_x,start_y,end_x,end_y = 0,0,0,0
+        clickFlag = 0
+        kaden_list.clear()
+        self.rv.data = []
+        self.ids.kaden_name.text = ""
         stepStatus -= 1
     
 
@@ -135,17 +153,17 @@ class Camera_View(Image):
             end_y = int(720-(touch.pos[1]-270))
             clickFlag = 2
 
-
 class Selected_Kaden(BoxLayout):
+    id = StringProperty()
     name = StringProperty()
-    image = ObjectProperty(None)
+    image = ObjectProperty(None)  
 
-
-'''
-class Selected_Kadens_View(RecycleView):
-    def __init__(self, **kwargs):
-        super(Selected_Kadens_View, self).__init__(**kwargs)
-'''     
+    def deleteKaden(self):
+        global kaden_list
+        rv = self.parent.parent.parent.parent.parent.parent.rv
+        kaden_list = [kaden for kaden in kaden_list if kaden["id"] != self.id]
+        rv.data = [kaden for kaden in rv.data if kaden["id"] != self.id]
+        
 
 class PrototypeApp(App):
     def build(self):
