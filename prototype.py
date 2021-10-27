@@ -195,10 +195,14 @@ class Control_Device(Screen):
             self.capture.release()
     
     def update(self, dt):
-        ret, self.frame = self.capture.read()
+        global kaden_list
+        ret, show_img = self.capture.read()
 
-        buf = cv2.flip(self.frame, 0).tostring()
-        texture = Texture.create(size=(self.frame.shape[1], self.frame.shape[0]), colorfmt='bgr') 
+        for i,kaden in enumerate(kaden_list):
+            show_img = cv2.rectangle(show_img, (kaden["area"]["start_x"],kaden["area"]["start_y"]), (kaden["area"]["end_x"], kaden["area"]["end_y"]), colors[i], 3)
+
+        buf = cv2.flip(show_img, 0).tostring()
+        texture = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='bgr') 
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
 
         camera = self.ids['image2']
