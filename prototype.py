@@ -4,6 +4,7 @@ Config.set('graphics', 'width', '1280')
 Config.set('graphics', 'height', '720')
 Config.set('graphics', 'resizable', False) 
 
+#アプリ用ライブラリ
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -13,6 +14,8 @@ from kivy.properties import StringProperty, ObjectProperty
 from kivy.uix.image import Image
 from kivy.graphics.texture import Texture
 from kivy.clock import Clock
+
+#その他ライブラリ
 import cv2
 import numpy as np
 import copy
@@ -82,10 +85,10 @@ class Config_Device(Screen):
 
     def update(self, dt):
         show_img = self.capture_img.copy()
-        global start_x,start_y,end_x,end_y,clickFlag
+        global start_x,start_y,end_x,end_y,clickFlag,colors
         #print(start_x,start_y,end_x,end_y,clickFlag)
         if clickFlag == 2:
-            show_img = cv2.rectangle(show_img, (start_x, start_y), (end_x, end_y), (0,0,255), 3)
+            show_img = cv2.rectangle(show_img, (start_x, start_y), (end_x, end_y), colors[len(kaden_list)], 3)
             
         buf = cv2.flip(show_img, 0).tostring()
         texture = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='bgr') 
@@ -95,7 +98,7 @@ class Config_Device(Screen):
     
     def add(self):
         #print(self.ids.kaden_name.text)
-        global start_x,start_y,end_x,end_y,clickFlag,kaden_list
+        global start_x,start_y,end_x,end_y,clickFlag,kaden_list,colors
         if end_x < start_x :
             tmp_x = start_x
             start_x = end_x
@@ -112,6 +115,9 @@ class Config_Device(Screen):
             kaden_image = show_image[start_y:end_y,start_x:end_x,]
             kaden_info = {"id":str(uuid.uuid4()),"name":self.ids.kaden_name.text,"area":kaden_area,"image":kaden_image}
             kaden_list.append(kaden_info)
+
+            #kaden_image = cv2.rectangle(kaden_image,(0,0),(kaden_image.shape[1],kaden_image.shape[0]),colors[len(kaden_list)-1],4)
+            kaden_image = cv2.copyMakeBorder(kaden_image,5,5,5,5,cv2.BORDER_CONSTANT,value=colors[len(kaden_list)-1])
 
             buf = cv2.flip(kaden_image, 0).tostring()
             texture = Texture.create(size=(kaden_image.shape[1], kaden_image.shape[0]), colorfmt='bgr')
@@ -159,11 +165,51 @@ class Selected_Kaden(BoxLayout):
     image = ObjectProperty(None)  
 
     def deleteKaden(self):
-        global kaden_list
+        global kaden_list,colors
         rv = self.parent.parent.parent.parent.parent.parent.rv
         kaden_list = [kaden for kaden in kaden_list if kaden["id"] != self.id]
         rv.data = [kaden for kaden in rv.data if kaden["id"] != self.id]
-        
+
+        for i,kaden in enumerate(kaden_list):
+            kaden_image = cv2.copyMakeBorder(kaden["image"],5,5,5,5,cv2.BORDER_CONSTANT,value=colors[i])
+            buf = cv2.flip(kaden_image, 0).tostring()   
+            texture = Texture.create(size=(kaden_image.shape[1], kaden_image.shape[0]), colorfmt='bgr')
+            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+            rv.data[i]['image'] = texture
+
+
+class Control_Device(Screen):
+    def __init__(self, **kwargs):
+        super(Control_Device, self).__init__(**kwargs)
+
+    def play(self):
+        global stepStatus
+        if stepStatus == 3:
+            self.capture = cv2.VideoCapture(1)
+            ret, self.frame = self.capture.read()
+            self.capture_img = self.frame
+            Clock.schedule_interval(self.update, 1.0 / 30)
+
+        else:
+            Clock.unschedule(self.update)
+            self.capture.release()
+    
+    def update(self, dt):
+        ret, self.frame = self.capture.read()
+
+        buf = cv2.flip(self.frame, 0).tostring()
+        texture = Texture.create(size=(self.frame.shape[1], self.frame.shape[0]), colorfmt='bgr') 
+        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+
+        camera = self.ids['image2']
+        camera.texture = texture
+    
+    def backStep(self):
+        global stepStatus,start_x,start_y,end_x,end_y,clickFlag
+        start_x,start_y,end_x,end_y = 0,0,0,0
+        clickFlag = 0
+        stepStatus -= 1
+
 
 class PrototypeApp(App):
     def build(self):
@@ -174,6 +220,8 @@ start_x,start_y = 0,0
 end_x,end_y = 0,0
 clickFlag = 0
 kaden_list = []
+kaden_limit_n = 6
+colors = [(0,0,255),(0,255,0),(255,0,0),(255,255,0),(255,0,255),(0,255,255)]
 
 if __name__ == '__main__':
     PrototypeApp().run()

@@ -18,6 +18,7 @@
             id: sm
             Camera_Position:
             Config_Device:
+            Control_Device:
  
 <Camera_Position>:
     name: 'camera_position'
@@ -199,8 +200,76 @@
                 font_size: 48
                 on_press: 
                     root.nextStep()
-                    root.manager.get_screen("camera_position").play()
+                    root.play()
+                    root.manager.get_screen("control_device").play()
                     root.manager.transition = NoTransition()
-                    root.manager.current = 'camera_position'
+                    root.manager.current = 'control_device'
 
 
+<Control_Device>:
+    name: 'control_device'
+    BoxLayout:
+        orientation: 'vertical'
+        #上
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: 156/255,167/255,181/255,1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            size_hint_y: 0.2   
+            Label:
+                text: "家電の操作"
+                color: 0,0,0,1
+                font_size: 48
+        
+        #中
+        BoxLayout:
+            #中左
+            BoxLayout:
+                orientation: 'vertical'
+
+                BoxLayout:
+                    size_hint_y: 0.2 
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    BoxLayout:
+                        size_hint_y: 0.1
+
+                    BoxLayout:
+                        canvas.before:
+                            Color:
+                                rgba: 1,0,0,1
+                            Rectangle:
+                                pos: self.pos
+                                size: self.size
+                        Image:
+                            id: image2
+                            size: self.size
+
+                BoxLayout:
+                    size_hint_y: 0.2 
+
+            BoxLayout:
+                orientation: 'vertical'
+
+        #下
+        BoxLayout:
+            size_hint_y: 0.1
+            padding: 10,10,10,10
+
+            Button:
+                background_color: 0.48,1,0.63,1
+                text: '戻る'
+                font_size: 48
+                on_press:
+                    root.backStep()
+                    root.play()
+                    root.manager.get_screen("config_device").play()
+                    root.manager.transition = NoTransition()
+                    root.manager.current = 'config_device'
+
+            Label:
+            Label:
