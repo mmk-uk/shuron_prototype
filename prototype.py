@@ -15,6 +15,10 @@ from kivy.uix.image import Image
 from kivy.graphics.texture import Texture
 from kivy.clock import Clock
 
+#MediaPipe
+import mediapipe as mp
+import prototype_module
+
 #その他ライブラリ
 import cv2
 import numpy as np
@@ -26,6 +30,7 @@ import uuid
 class Display(BoxLayout):
     pass
  
+#画面１：カメラ位置設定
 class Camera_Position(Screen):
     #count = 0
     def __init__(self, **kwargs):
@@ -63,7 +68,7 @@ class Camera_Position(Screen):
         stepStatus += 1
         #self.capture.release()
     
- 
+#画面２：家電位置の設定
 class Config_Device(Screen):
     rv = ObjectProperty()
     capture_img = np.zeros((1280,720), np.uint8)
@@ -87,7 +92,7 @@ class Config_Device(Screen):
         show_img = self.capture_img.copy()
         global start_x,start_y,end_x,end_y,clickFlag,colors
         #print(start_x,start_y,end_x,end_y,clickFlag)
-        if clickFlag == 2:
+        if clickFlag == 2 and len(kaden_list) < kaden_limit_n:
             show_img = cv2.rectangle(show_img, (start_x, start_y), (end_x, end_y), colors[len(kaden_list)], 3)
             
         buf = cv2.flip(show_img, 0).tostring()
@@ -96,9 +101,10 @@ class Config_Device(Screen):
         camera = self.ids['image1']
         camera.texture = texture
     
+    #家電の追加
     def add(self):
         #print(self.ids.kaden_name.text)
-        global start_x,start_y,end_x,end_y,clickFlag,kaden_list,colors
+        global start_x,start_y,end_x,end_y,clickFlag,kaden_list,colors,kaden_limit_n
         if end_x < start_x :
             tmp_x = start_x
             start_x = end_x
@@ -109,7 +115,7 @@ class Config_Device(Screen):
             start_y = end_y
             end_y = tmp_y
 
-        if clickFlag == 2 and len(self.ids.kaden_name.text) != 0:
+        if clickFlag == 2 and len(self.ids.kaden_name.text) != 0 and len(kaden_list) < kaden_limit_n:
             kaden_area = {"start_x":start_x,"start_y":start_y,"end_x":end_x,"end_y":end_y}
             show_image = self.capture_img.copy()
             kaden_image = show_image[start_y:end_y,start_x:end_x,]
@@ -178,9 +184,17 @@ class Selected_Kaden(BoxLayout):
             rv.data[i]['image'] = texture
 
 
+#画面３：家電の操作
 class Control_Device(Screen):
     def __init__(self, **kwargs):
         super(Control_Device, self).__init__(**kwargs)
+        
+        #モデルロード
+        mp_pose = mp.solutions.pose #モデルの選択
+        self.pose = mp_pose.Pose(
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
 
     def play(self):
         global stepStatus
@@ -198,34 +212,67 @@ class Control_Device(Screen):
         global kaden_list
         ret, show_img = self.capture.read()
 
+        #家電位置の描画
         for i,kaden in enumerate(kaden_list):
             show_img = cv2.rectangle(show_img, (kaden["area"]["start_x"],kaden["area"]["start_y"]), (kaden["area"]["end_x"], kaden["area"]["end_y"]), colors[i], 3)
+        
+        #姿勢推定処理
+        show_img.flags.writeable = False
+        show_img = cv2.cvtColor(show_img, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(show_img)
+
+        #キーポイントリスト作成
+        landmark_point = []
+        for index, landmark in enumerate(results.pose_landmarks.landmark):
+            landmark_x = min(int(landmark.x * show_img.shape[1]), show_img.shape[1] - 1)
+            landmark_y = min(int(landmark.y * show_img.shape[0]), show_img.shape[0] - 1)
+            landmark_point.append([landmark.visibility, (landmark_x, landmark_y)])
+        
+        #姿勢の描画
+        if results.pose_landmarks is not None:
+            #print(type(self.frame))
+            show_img = prototype_module.draw_landmarks(show_img, landmark_point)
+
+        #家電選択の計算
+        visibility_th = 0.5
+        if landmark_point[12][0] > visibility_th and landmark_point[14][0] > visibility_th and landmark_point[16][0] > visibility_th:
+            #右腕の曲がり角度
+            arm_angle = prototype_module.joint_angle(landmark_point[12][1],landmark_point[14][1],landmark_point[16][1])
+            if arm_angle > 150:
+                cv2.line(show_img, landmark_point[12][1], landmark_point[16][1],(255, 0, 0), 6)
+                for kaden in kaden_list:
+                    #家電選択の判定
+                    judge = prototype_module.select_kaden_judge(landmark_point[12][1],landmark_point[16][1],(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
+                    if judge:
+                        pass
+                        #print(kaden["name"])
+
+
 
         buf = cv2.flip(show_img, 0).tostring()
-        texture = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='bgr') 
-        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        texture = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='rgb') 
+        texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
 
         camera = self.ids['image2']
         camera.texture = texture
-    
+
     def backStep(self):
         global stepStatus,start_x,start_y,end_x,end_y,clickFlag
         start_x,start_y,end_x,end_y = 0,0,0,0
         clickFlag = 0
         stepStatus -= 1
 
-
 class PrototypeApp(App):
     def build(self):
         return Display()
- 
+
 stepStatus = 1
 start_x,start_y = 0,0
 end_x,end_y = 0,0
 clickFlag = 0
 kaden_list = []
 kaden_limit_n = 6
-colors = [(0,0,255),(0,255,0),(255,0,0),(255,255,0),(255,0,255),(0,255,255)]
+colors = [(0,102,225),(255,144,30),(0,215,255),(34,139,34),(204,102,255),(51,102,153)]
 
 if __name__ == '__main__':
     PrototypeApp().run()
