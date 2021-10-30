@@ -186,6 +186,9 @@ class Selected_Kaden(BoxLayout):
 
 #画面３：家電の操作
 class Control_Device(Screen):
+    selected_kaden_name = StringProperty()
+    kaden_judge_s = StringProperty()
+
     def __init__(self, **kwargs):
         super(Control_Device, self).__init__(**kwargs)
         
@@ -195,14 +198,22 @@ class Control_Device(Screen):
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-
+        
     def play(self):
         global stepStatus
-        if stepStatus == 3:
+        if stepStatus == 3:            
             self.capture = cv2.VideoCapture(1)
             ret, self.frame = self.capture.read()
             self.capture_img = self.frame
             Clock.schedule_interval(self.update, 1.0 / 30)
+
+            self.kaden_judge_s = "選択されていません。"
+            tmp_img = np.full((300, 300, 3), (204,204,204), dtype=np.uint8)
+            buf = cv2.flip(tmp_img, 0).tostring()
+            texture = Texture.create(size=(tmp_img.shape[1], tmp_img.shape[0]), colorfmt='bgr') 
+            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+            camera = self.ids['select_kaden_image']
+            camera.texture = texture
 
         else:
             Clock.unschedule(self.update)
@@ -223,10 +234,11 @@ class Control_Device(Screen):
 
         #キーポイントリスト作成
         landmark_point = []
-        for index, landmark in enumerate(results.pose_landmarks.landmark):
-            landmark_x = min(int(landmark.x * show_img.shape[1]), show_img.shape[1] - 1)
-            landmark_y = min(int(landmark.y * show_img.shape[0]), show_img.shape[0] - 1)
-            landmark_point.append([landmark.visibility, (landmark_x, landmark_y)])
+        if results.pose_landmarks is not None:
+            for index, landmark in enumerate(results.pose_landmarks.landmark):
+                landmark_x = min(int(landmark.x * show_img.shape[1]), show_img.shape[1] - 1)
+                landmark_y = min(int(landmark.y * show_img.shape[0]), show_img.shape[0] - 1)
+                landmark_point.append([landmark.visibility, (landmark_x, landmark_y)])
         
         #姿勢の描画
         if results.pose_landmarks is not None:
@@ -235,17 +247,36 @@ class Control_Device(Screen):
 
         #家電選択の計算
         visibility_th = 0.5
-        if landmark_point[12][0] > visibility_th and landmark_point[14][0] > visibility_th and landmark_point[16][0] > visibility_th:
-            #右腕の曲がり角度
-            arm_angle = prototype_module.joint_angle(landmark_point[12][1],landmark_point[14][1],landmark_point[16][1])
-            if arm_angle > 150:
-                cv2.line(show_img, landmark_point[12][1], landmark_point[16][1],(255, 0, 0), 6)
-                for kaden in kaden_list:
-                    #家電選択の判定
-                    judge = prototype_module.select_kaden_judge(landmark_point[12][1],landmark_point[16][1],(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
-                    if judge:
-                        pass
-                        #print(kaden["name"])
+        if len(landmark_point) > 0:
+            if landmark_point[12][0] > visibility_th and landmark_point[14][0] > visibility_th and landmark_point[16][0] > visibility_th:
+                #右腕の曲がり角度
+                arm_angle = prototype_module.joint_angle(landmark_point[12][1],landmark_point[14][1],landmark_point[16][1])
+                if arm_angle > 150:
+                    cv2.line(show_img, landmark_point[12][1], landmark_point[16][1],(255, 0, 0), 6)
+                    not_select = True
+                    for kaden in kaden_list:
+                        #家電選択の判定
+                        judge = prototype_module.select_kaden_judge(landmark_point[12][1],landmark_point[16][1],(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
+                        if judge:
+                            not_select = False
+                            self.selected_kaden_name = kaden["name"]
+                            self.kaden_judge_s = "が選択されています。"
+                            select_kaden_image = cv2.resize(kaden["image"],dsize=(round(kaden["image"].shape[1]*(300/kaden["image"].shape[0])),300))
+                            
+                            buf = cv2.flip(select_kaden_image, 0).tostring()
+                            texture = Texture.create(size=(select_kaden_image.shape[1], select_kaden_image.shape[0]), colorfmt='bgr') 
+                            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+                            camera = self.ids['select_kaden_image']
+                            camera.texture = texture
+                    if not_select:
+                        self.selected_kaden_name = ""
+                        self.kaden_judge_s = "選択されていません。"
+                        tmp_img = np.full((300, 300, 3), (204,204,204), dtype=np.uint8)
+                        buf = cv2.flip(tmp_img, 0).tostring()
+                        texture = Texture.create(size=(tmp_img.shape[1], tmp_img.shape[0]), colorfmt='bgr') 
+                        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+                        camera = self.ids['select_kaden_image']
+                        camera.texture = texture
 
 
 

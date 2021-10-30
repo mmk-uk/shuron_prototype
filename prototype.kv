@@ -252,8 +252,29 @@
                 BoxLayout:
                     size_hint_y: 0.2 
 
+            #中右
             BoxLayout:
                 orientation: 'vertical'
+                BoxLayout:
+                    size_hint_y: 0.1
+                BoxLayout:
+                    orientation: 'vertical'
+                    Image:
+                        id: select_kaden_image
+                        size: self.size
+                    Label:
+                        text: root.selected_kaden_name
+                        color: 0,0,0,1
+                        font_size: 45
+                    
+                    Label:
+                        text: root.kaden_judge_s
+                        color: 0,0,0,1
+                        font_size: 45
+
+                BoxLayout:
+                    size_hint_y: 0.1
+
 
         #下
         BoxLayout:

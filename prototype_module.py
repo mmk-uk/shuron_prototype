@@ -9,6 +9,8 @@ def joint_angle(A,B,C):
     b = (C[0]-B[0],C[1]-B[1])
     #2点からコサインを求める
     cos = (a[0]*b[0]+a[1]*b[1])/(math.sqrt(a[0]*a[0]+a[1]*a[1])*math.sqrt(b[0]*b[0]+b[1]*b[1]))
+    cos = 1 if cos > 1 else -1 if cos < -1 else cos
+
     #アークコサインで角度を求める
     deg = math.degrees(math.acos(cos))
     #少数を整数に
@@ -20,23 +22,31 @@ def select_kaden_judge(A,B,X,Y):
     v = (B[0]-A[0],B[1]-A[1])
     x = (X[0]-A[0],Y[1]-A[1])
     y = (Y[0]-A[0],X[1]-A[1])
+    w = (X[0]-A[0],X[1]-A[1])
+    z = (Y[0]-A[0],Y[1]-A[1])
 
     #角度を求める
-    v_t = v[1]/v[0]
-    x_t = x[1]/x[0]
-    y_t = y[1]/y[0]
+    v_t = math.degrees(np.arctan2(v[0],v[1]))
+    x_t = math.degrees(np.arctan2(x[0],x[1]))
+    y_t = math.degrees(np.arctan2(y[0],y[1]))
+    w_t = math.degrees(np.arctan2(w[0],w[1]))
+    z_t = math.degrees(np.arctan2(z[0],z[1]))
 
-    #角度を比較
-    if x_t > y_t:
-        if y_t < v_t and v_t < x_t:
+    max_t = max([x_t,y_t,w_t,z_t])
+    min_t = min([x_t,y_t,w_t,z_t])
+
+    if (max_t - min_t) < 180:
+        if min_t < v_t and v_t < max_t:
             return True
         else:
             return False
     else:
-        if x_t < v_t and v_t < y_t:
+        if (-180 < v_t and v_t < min_t) or (max_t < v_t and v_t < 180):
             return True
         else:
             return False
+
+
 
 #骨格を描画する関数
 def draw_landmarks(image, landmark_point, visibility_th=0.5):
