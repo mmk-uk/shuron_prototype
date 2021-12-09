@@ -173,6 +173,23 @@
                         height: self.minimum_height
                         orientation: 'vertical'
                         spacing: dp(4)
+                BoxLayout:
+                    size_hint_y: 0.2 
+                    padding: 20,20,20,50
+                    ToggleButton
+                        id: left_hand
+                        group: 'dominant_hand'
+                        text: '左利き'
+                        on_press:
+                            root.dominant_hand_check(self.text)
+                    ToggleButton
+                        id: right_hand
+                        group: 'dominant_hand'
+                        text: '右利き'
+                        state: 'down'
+                        on_press:
+                            root.dominant_hand_check(self.text)
+
 
 
 
@@ -199,11 +216,11 @@
                 text: 'OK'
                 font_size: 48
                 on_press: 
-                    root.nextStep()
-                    root.play()
-                    root.manager.get_screen("control_device").play()
-                    root.manager.transition = NoTransition()
-                    root.manager.current = 'control_device'
+                    if root.nextStep() : \
+                    root.play();root.manager.get_screen("control_device").play();root.manager.transition = NoTransition();root.manager.current = 'control_device' 
+                        
+                        
+                        
 
 
 <Control_Device>:
@@ -220,7 +237,7 @@
                     size: self.size
             size_hint_y: 0.2   
             Label:
-                text: "家電の操作"
+                text: "家電の選択"
                 color: 0,0,0,1
                 font_size: 48
         

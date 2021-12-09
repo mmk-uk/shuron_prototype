@@ -17,7 +17,16 @@ from kivy.clock import Clock
 
 #MediaPipe
 import mediapipe as mp
-import prototype_module
+#import prototype_module
+from prototype_module import joint_angle
+from prototype_module import select_kaden_judge1
+from prototype_module import select_kaden_judge2
+from prototype_module import draw_landmarks
+from prototype_module import eyes_keypoint
+from prototype_module import dominant_arm_shoulder
+from prototype_module import dominant_arm_elbow
+from prototype_module import dominant_arm_tip
+from prototype_module import dominant_arm_waist
 
 #その他ライブラリ
 import cv2
@@ -135,8 +144,12 @@ class Config_Device(Screen):
 
 
     def nextStep(self):
-        global stepStatus
-        stepStatus += 1
+        global stepStatus,kaden_list
+        if len(kaden_list) > 0:
+            stepStatus += 1
+            return True
+        else:
+            return False
 
     def backStep(self):
         global stepStatus,start_x,start_y,end_x,end_y,clickFlag,kaden_list
@@ -147,6 +160,22 @@ class Config_Device(Screen):
         self.ids.kaden_name.text = ""
         stepStatus -= 1
     
+    def dominant_hand_check(self,hand):
+        global dominant_hand_flag
+
+        if self.ids.left_hand.state == 'normal' and self.ids.right_hand.state == 'normal':
+            if hand == '左利き':
+                self.ids.right_hand.state = 'down'
+            else:
+                self.ids.left_hand.state = 'down'
+
+        if self.ids.left_hand.state == 'down':
+            #左利き
+            dominant_hand_flag = 1
+
+        if self.ids.right_hand.state == 'down':
+            #右利き
+            dominant_hand_flag = 0
 
 class Camera_View(Image):
     def on_image1_down(self, touch):
@@ -207,6 +236,7 @@ class Control_Device(Screen):
             self.capture_img = self.frame
             Clock.schedule_interval(self.update, 1.0 / 30)
 
+            self.selected_kaden_name = ""
             self.kaden_judge_s = "選択されていません。"
             tmp_img = np.full((300, 300, 3), (204,204,204), dtype=np.uint8)
             buf = cv2.flip(tmp_img, 0).tostring()
@@ -220,7 +250,7 @@ class Control_Device(Screen):
             self.capture.release()
     
     def update(self, dt):
-        global kaden_list
+        global kaden_list,dominant_hand_flag
         ret, show_img = self.capture.read()
 
         #家電位置の描画
@@ -243,49 +273,49 @@ class Control_Device(Screen):
         #姿勢の描画
         if results.pose_landmarks is not None:
             #print(type(self.frame))
-            show_img = prototype_module.draw_landmarks(show_img, landmark_point)
+            show_img = draw_landmarks(show_img, landmark_point)
 
         #家電選択の計算
         visibility_th = 0.5
+        self.selected_kaden_name = ""
+        self.kaden_judge_s = "選択されていません。"
+        tmp_img = np.full((300, 300, 3), (204,204,204), dtype=np.uint8)
+        select_kaden = {"not_select":True,"name":"","image":tmp_img,"diff":180}
         if len(landmark_point) > 0:
-            if landmark_point[12][0] > visibility_th and landmark_point[14][0] > visibility_th and landmark_point[16][0] > visibility_th:
+            #if landmark_point[12][0] > visibility_th and landmark_point[14][0] > visibility_th and landmark_point[16][0] > visibility_th:
                 #右腕の曲がり角度
-                arm_angle = prototype_module.joint_angle(landmark_point[12][1],landmark_point[14][1],landmark_point[16][1])
-                if arm_angle > 150:
-                    cv2.line(show_img, landmark_point[12][1], landmark_point[16][1],(255, 0, 0), 6)
-                    not_select = True
+                arm_angle = joint_angle(dominant_arm_shoulder(landmark_point,dominant_hand_flag),dominant_arm_elbow(landmark_point,dominant_hand_flag),dominant_arm_tip(landmark_point,dominant_hand_flag))
+                if arm_angle > 120:
+                    #cv2.line(show_img, eyes_keypoint(landmark_point[2][1],landmark_point[5][1]), landmark_point[16][1],(255, 0, 0), 6)
+                    cv2.line(show_img, eyes_keypoint(dominant_arm_shoulder(landmark_point,dominant_hand_flag),dominant_arm_waist(landmark_point,dominant_hand_flag)), dominant_arm_tip(landmark_point,dominant_hand_flag),(255, 0, 0), 6)
                     for kaden in kaden_list:
                         #家電選択の判定
-                        judge = prototype_module.select_kaden_judge(landmark_point[12][1],landmark_point[16][1],(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
+                        judge = select_kaden_judge1(dominant_arm_shoulder(landmark_point,dominant_hand_flag),dominant_arm_waist(landmark_point,dominant_hand_flag),dominant_arm_tip(landmark_point,dominant_hand_flag),(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
                         if judge:
-                            not_select = False
-                            self.selected_kaden_name = kaden["name"]
-                            self.kaden_judge_s = "が選択されています。"
-                            select_kaden_image = cv2.resize(kaden["image"],dsize=(round(kaden["image"].shape[1]*(300/kaden["image"].shape[0])),300))
+                            diff = select_kaden_judge2(dominant_arm_shoulder(landmark_point,dominant_hand_flag),dominant_arm_waist(landmark_point,dominant_hand_flag),dominant_arm_tip(landmark_point,dominant_hand_flag),(kaden["area"]["start_x"],kaden["area"]["start_y"]),(kaden["area"]["end_x"], kaden["area"]["end_y"]))
+                            if diff < select_kaden["diff"]:
+                                select_kaden["not_select"] = False
+                                self.selected_kaden_name = kaden["name"]
+                                self.kaden_judge_s = "が選択されています。"
+                                select_kaden["image"] = cv2.resize(kaden["image"],dsize=(round(kaden["image"].shape[1]*(300/kaden["image"].shape[0])),300))
                             
-                            buf = cv2.flip(select_kaden_image, 0).tostring()
-                            texture = Texture.create(size=(select_kaden_image.shape[1], select_kaden_image.shape[0]), colorfmt='bgr') 
-                            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-                            camera = self.ids['select_kaden_image']
-                            camera.texture = texture
-                    if not_select:
-                        self.selected_kaden_name = ""
-                        self.kaden_judge_s = "選択されていません。"
-                        tmp_img = np.full((300, 300, 3), (204,204,204), dtype=np.uint8)
-                        buf = cv2.flip(tmp_img, 0).tostring()
-                        texture = Texture.create(size=(tmp_img.shape[1], tmp_img.shape[0]), colorfmt='bgr') 
-                        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-                        camera = self.ids['select_kaden_image']
-                        camera.texture = texture
+
+                    #if select_kaden["not_select"]:
+                    #   self.selected_kaden_name = ""
+                    #   self.kaden_judge_s = "選択されていません。"
 
 
+        buf1 = cv2.flip(select_kaden["image"], 0).tostring()
+        texture1 = Texture.create(size=(select_kaden["image"].shape[1], select_kaden["image"].shape[0]), colorfmt='bgr') 
+        texture1.blit_buffer(buf1, colorfmt='bgr', bufferfmt='ubyte')
+        camera1 = self.ids['select_kaden_image']
+        camera1.texture = texture1
 
-        buf = cv2.flip(show_img, 0).tostring()
-        texture = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='rgb') 
-        texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
-
-        camera = self.ids['image2']
-        camera.texture = texture
+        buf2 = cv2.flip(show_img, 0).tostring()
+        texture2 = Texture.create(size=(show_img.shape[1], show_img.shape[0]), colorfmt='rgb') 
+        texture2.blit_buffer(buf2, colorfmt='rgb', bufferfmt='ubyte')
+        camera2 = self.ids['image2']
+        camera2.texture = texture2
 
     def backStep(self):
         global stepStatus,start_x,start_y,end_x,end_y,clickFlag
@@ -303,7 +333,8 @@ end_x,end_y = 0,0
 clickFlag = 0
 kaden_list = []
 kaden_limit_n = 6
-colors = [(0,102,225),(255,144,30),(0,215,255),(34,139,34),(204,102,255),(51,102,153)]
+dominant_hand_flag = 0 #0:右,1:左
+colors = [(0,215,255),(255,144,30),(0,102,225),(34,139,34),(204,102,255),(51,102,153)]
 
 if __name__ == '__main__':
     PrototypeApp().run()
